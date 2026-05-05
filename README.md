@@ -33,7 +33,7 @@ OpsFlow helps support teams manage incidents from intake through resolution. Use
 ## Links
 
 - Deployed app: TBD
-- Project board: TBD
+- Project board: https://github.com/users/ghost-wolves/projects/1/views/1
 - Demo video: TBD
 
 ## Status
