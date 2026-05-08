@@ -1,0 +1,2 @@
+-- Baseline migration for OpsFlow.
+-- Schema objects will be added in later migrations.
