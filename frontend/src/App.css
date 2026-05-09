@@ -1,32 +1,119 @@
-main {
+.app-shell {
   min-height: 100vh;
+  background: #f7f8fb;
+  color: #172033;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 2rem;
+  background: white;
+  border-bottom: 1px solid #d9deea;
+}
+
+.brand {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #172033;
+  text-decoration: none;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+}
+
+nav a,
+.primary-link {
+  color: #1f5eff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+button,
+.primary-link {
+  border: 0;
+  border-radius: 0.6rem;
+  background: #1f5eff;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.75rem 1rem;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.centered-page {
+  min-height: calc(100vh - 74px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem;
 }
 
-section {
-  max-width: 720px;
+.hero-card,
+.auth-card {
+  width: min(760px, 100%);
+  background: white;
+  border: 1px solid #d9deea;
+  border-radius: 1.25rem;
+  box-shadow: 0 16px 40px rgba(23, 32, 51, 0.08);
+  padding: 2.5rem;
   text-align: center;
 }
 
-h1 {
-  font-size: 4rem;
-  margin-bottom: 1rem;
+.hero-card h1,
+.auth-card h1 {
+  font-size: 3rem;
+  margin: 0 0 1rem;
 }
 
-p {
-  font-size: 1.5rem;
+.hero-card p,
+.auth-card p {
+  color: #526071;
+  font-size: 1.2rem;
   margin-bottom: 2rem;
 }
 
-nav {
-  display: flex;
-  justify-content: center;
+.demo-login-grid {
+  display: grid;
   gap: 1rem;
+  margin-bottom: 2rem;
 }
 
-nav a {
-  font-weight: 600;
+.login-form {
+  display: grid;
+  gap: 1rem;
+  text-align: left;
+}
+
+.login-form label {
+  color: #344054;
+  display: grid;
+  font-weight: 700;
+  gap: 0.4rem;
+}
+
+.login-form input {
+  border: 1px solid #c5ccda;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  padding: 0.75rem;
+}
+
+.login-summary {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.error-message {
+  color: #b42318;
+  font-weight: 700;
+  margin-top: 1rem;
 }
