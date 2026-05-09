@@ -1,18 +1,13 @@
 import { render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import App from './App';
 
 describe('App', () => {
-  beforeEach(() => {
-    localStorage.clear();
-    window.history.pushState({}, '', '/');
-  });
-
   it('renders the OpsFlow landing page', () => {
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <App />
-      </BrowserRouter>,
+      </MemoryRouter>,
     );
 
     expect(screen.getByRole('heading', { name: /OpsFlow/i })).toBeInTheDocument();

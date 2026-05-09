@@ -16,6 +16,21 @@ type DemoAccount = {
   password: string;
 };
 
+type TicketResponse = {
+  id: number;
+  ticketNumber: string;
+  title: string;
+  description: string;
+  affectedSystem: string;
+  impact: string;
+  urgency: string;
+  priority: string;
+  status: string;
+  requesterEmail: string;
+  requesterDisplayName: string;
+  slaDueAt: string;
+};
+
 const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     label: 'Login as Requester',
@@ -48,6 +63,18 @@ function getStoredUser(): LoginUser | null {
     localStorage.removeItem('opsflow.credentials');
     return null;
   }
+}
+
+function getAuthHeader(): Record<string, string> {
+  const credentials = localStorage.getItem('opsflow.credentials');
+
+  if (!credentials) {
+    return {};
+  }
+
+  return {
+    Authorization: `Basic ${credentials}`,
+  };
 }
 
 function hasRole(user: LoginUser | null, role: string): boolean {
@@ -96,7 +123,7 @@ function App() {
           path="/tickets/new"
           element={
             <ProtectedRoute user={user}>
-              <PlaceholderPage title="Create Ticket" />
+              <CreateTicketPage user={user} />
             </ProtectedRoute>
           }
         />
@@ -315,6 +342,145 @@ function LoginPage({ onLogin }: { onLogin: (user: LoginUser) => void }) {
             Login
           </button>
         </form>
+
+        {error ? <p className="error-message">{error}</p> : null}
+      </section>
+    </main>
+  );
+}
+
+function CreateTicketPage({ user }: { user: LoginUser | null }) {
+  const [createdTicket, setCreatedTicket] = useState<TicketResponse | null>(null);
+  const [error, setError] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!hasRole(user, 'REQUESTER')) {
+    return (
+      <main className="centered-page">
+        <section className="hero-card">
+          <h1>Access Denied</h1>
+          <p>Only requesters can create tickets.</p>
+        </section>
+      </main>
+    );
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+
+    setCreatedTicket(null);
+    setError('');
+    setIsSubmitting(true);
+
+    const formData = new FormData(form);
+
+    const payload = {
+      title: String(formData.get('title')),
+      description: String(formData.get('description')),
+      affectedSystem: String(formData.get('affectedSystem')),
+      impact: String(formData.get('impact')),
+      urgency: String(formData.get('urgency')),
+    };
+
+    try {
+      const response = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Ticket creation failed.');
+      }
+
+      const ticket = (await response.json()) as TicketResponse;
+      setError('');
+      setCreatedTicket(ticket);
+      form.reset();
+    } catch {
+      setError('Unable to create ticket. Please check the form and try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="page-container">
+      <section className="content-card">
+        <h1>Create Ticket</h1>
+        <p>Submit a new incident for triage and SLA tracking.</p>
+
+        <form onSubmit={handleSubmit} className="ticket-form">
+          <label>
+            Title
+            <input
+              name="title"
+              type="text"
+              maxLength={160}
+              required
+              placeholder="Billing export failed"
+            />
+          </label>
+
+          <label>
+            Description
+            <textarea
+              name="description"
+              maxLength={5000}
+              required
+              placeholder="Describe the incident, who is affected, and what error you are seeing."
+            />
+          </label>
+
+          <label>
+            Affected System
+            <input
+              name="affectedSystem"
+              type="text"
+              maxLength={120}
+              required
+              placeholder="Billing Portal"
+            />
+          </label>
+
+          <div className="form-grid">
+            <label>
+              Impact
+              <select name="impact" required defaultValue="MEDIUM">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </select>
+            </label>
+
+            <label>
+              Urgency
+              <select name="urgency" required defaultValue="MEDIUM">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </select>
+            </label>
+          </div>
+
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating Ticket...' : 'Create Ticket'}
+          </button>
+        </form>
+
+        {createdTicket ? (
+          <div className="success-message">
+            <strong>Ticket {createdTicket.ticketNumber} created successfully.</strong>
+            <span>Priority: {createdTicket.priority}</span>
+            <span>Status: {createdTicket.status}</span>
+            <span>SLA Due: {new Date(createdTicket.slaDueAt).toLocaleString()}</span>
+          </div>
+        ) : null}
 
         {error ? <p className="error-message">{error}</p> : null}
       </section>
