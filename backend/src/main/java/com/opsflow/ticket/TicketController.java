@@ -14,15 +14,18 @@ public class TicketController {
     private final TicketService ticketService;
     private final TicketCommentService ticketCommentService;
     private final TicketAuditService ticketAuditService;
+    private final TriageSuggestionService triageSuggestionService;
 
     public TicketController(
             TicketService ticketService,
             TicketCommentService ticketCommentService,
-            TicketAuditService ticketAuditService
+            TicketAuditService ticketAuditService,
+            TriageSuggestionService triageSuggestionService
     ) {
         this.ticketService = ticketService;
         this.ticketCommentService = ticketCommentService;
         this.ticketAuditService = ticketAuditService;
+        this.triageSuggestionService = triageSuggestionService;
     }
 
     @PostMapping
@@ -32,6 +35,18 @@ public class TicketController {
             Authentication authentication
     ) {
         return ticketService.createTicket(request, authentication.getName());
+    }
+
+    @PostMapping("/triage-suggestion")
+    @PreAuthorize("hasRole('REQUESTER')")
+    public TriageSuggestionResponse suggestTriage(
+            @Valid @RequestBody CreateTicketRequest request
+    ) {
+        return triageSuggestionService.suggest(
+                request.title(),
+                request.description(),
+                request.affectedSystem()
+        );
     }
 
     @GetMapping

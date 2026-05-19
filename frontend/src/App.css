@@ -505,3 +505,33 @@ button:disabled {
   background: #7a271a;
   color: white;
 }
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.triage-suggestion-card {
+  background: #f8fbff;
+  border: 1px solid #b2ccff;
+  border-radius: 0.9rem;
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+}
+
+.triage-suggestion-card h2 {
+  margin: 0;
+}
+
+.triage-suggestion-card p {
+  margin: 0;
+}
+
+.suggestion-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}

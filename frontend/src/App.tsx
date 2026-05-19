@@ -34,6 +34,13 @@ type TicketAuditEventResponse = {
   createdAt: string;
 };
 
+type TriageSuggestionResponse = {
+  suggestedImpact: string;
+  suggestedUrgency: string;
+  suggestedPriority: string;
+  explanation: string;
+};
+
 type DemoAccount = {
   label: string;
   email: string;
@@ -1123,8 +1130,14 @@ function MyTicketsPage({ user }: { user: LoginUser | null }) {
 
 function CreateTicketPage({ user }: { user: LoginUser | null }) {
   const [createdTicket, setCreatedTicket] = useState<TicketResponse | null>(null);
+  const [triageSuggestion, setTriageSuggestion] = useState<TriageSuggestionResponse | null>(null);
+  const [selectedImpact, setSelectedImpact] = useState('MEDIUM');
+  const [selectedUrgency, setSelectedUrgency] = useState('MEDIUM');
   const [error, setError] = useState<string>('');
+  const [suggestionError, setSuggestionError] = useState<string>('');
+  const [suggestionMessage, setSuggestionMessage] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
   if (!hasRole(user, 'REQUESTER')) {
     return (
@@ -1137,6 +1150,61 @@ function CreateTicketPage({ user }: { user: LoginUser | null }) {
     );
   }
 
+  function getTicketPayload(form: HTMLFormElement) {
+    const formData = new FormData(form);
+
+    return {
+      title: String(formData.get('title')),
+      description: String(formData.get('description')),
+      affectedSystem: String(formData.get('affectedSystem')),
+      impact: selectedImpact,
+      urgency: selectedUrgency,
+    };
+  }
+
+  async function handleSuggestTriage(form: HTMLFormElement) {
+    const payload = getTicketPayload(form);
+
+    setCreatedTicket(null);
+    setTriageSuggestion(null);
+    setSuggestionError('');
+    setSuggestionMessage('');
+    setIsSuggesting(true);
+
+    try {
+      const response = await fetch('/api/tickets/triage-suggestion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Triage suggestion failed.');
+      }
+
+      const suggestion = (await response.json()) as TriageSuggestionResponse;
+      setTriageSuggestion(suggestion);
+      setSuggestionMessage('Suggestion generated. You can apply it or keep your current selections.');
+    } catch {
+      setSuggestionError('Unable to generate triage suggestion. Please check the form and try again.');
+    } finally {
+      setIsSuggesting(false);
+    }
+  }
+
+  function handleApplySuggestion() {
+    if (!triageSuggestion) {
+      return;
+    }
+
+    setSelectedImpact(triageSuggestion.suggestedImpact);
+    setSelectedUrgency(triageSuggestion.suggestedUrgency);
+    setSuggestionMessage('Suggestion applied to Impact and Urgency. You can still change them before submitting.');
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -1146,15 +1214,7 @@ function CreateTicketPage({ user }: { user: LoginUser | null }) {
     setError('');
     setIsSubmitting(true);
 
-    const formData = new FormData(form);
-
-    const payload = {
-      title: String(formData.get('title')),
-      description: String(formData.get('description')),
-      affectedSystem: String(formData.get('affectedSystem')),
-      impact: String(formData.get('impact')),
-      urgency: String(formData.get('urgency')),
-    };
+    const payload = getTicketPayload(form);
 
     try {
       const response = await fetch('/api/tickets', {
@@ -1173,6 +1233,10 @@ function CreateTicketPage({ user }: { user: LoginUser | null }) {
       const ticket = (await response.json()) as TicketResponse;
       setError('');
       setCreatedTicket(ticket);
+      setTriageSuggestion(null);
+      setSuggestionMessage('');
+      setSelectedImpact('MEDIUM');
+      setSelectedUrgency('MEDIUM');
       form.reset();
     } catch {
       setError('Unable to create ticket. Please check the form and try again.');
@@ -1223,7 +1287,12 @@ function CreateTicketPage({ user }: { user: LoginUser | null }) {
           <div className="form-grid">
             <label>
               Impact
-              <select name="impact" required defaultValue="MEDIUM">
+              <select
+                name="impact"
+                required
+                value={selectedImpact}
+                onChange={(event) => setSelectedImpact(event.target.value)}
+              >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
                 <option value="HIGH">High</option>
@@ -1232,7 +1301,12 @@ function CreateTicketPage({ user }: { user: LoginUser | null }) {
 
             <label>
               Urgency
-              <select name="urgency" required defaultValue="MEDIUM">
+              <select
+                name="urgency"
+                required
+                value={selectedUrgency}
+                onChange={(event) => setSelectedUrgency(event.target.value)}
+              >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
                 <option value="HIGH">High</option>
@@ -1240,10 +1314,45 @@ function CreateTicketPage({ user }: { user: LoginUser | null }) {
             </label>
           </div>
 
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Creating Ticket...' : 'Create Ticket'}
-          </button>
+          <div className="form-actions">
+            <button
+              type="button"
+              disabled={isSuggesting}
+              onClick={(event) => {
+                const form = event.currentTarget.form;
+                if (form) {
+                  handleSuggestTriage(form);
+                }
+              }}
+            >
+              {isSuggesting ? 'Generating Suggestion...' : 'Get Triage Suggestion'}
+            </button>
+
+            <button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Creating Ticket...' : 'Create Ticket'}
+            </button>
+          </div>
         </form>
+
+        {triageSuggestion ? (
+          <div className="triage-suggestion-card">
+            <h2>Triage Suggestion</h2>
+            <div className="suggestion-grid">
+              <span>Impact: <strong>{triageSuggestion.suggestedImpact}</strong></span>
+              <span>Urgency: <strong>{triageSuggestion.suggestedUrgency}</strong></span>
+              <span>Priority: <strong>{triageSuggestion.suggestedPriority}</strong></span>
+            </div>
+            <p>{triageSuggestion.explanation}</p>
+            <p>This suggestion is optional. You can apply it or keep your current selections.</p>
+
+            <button type="button" onClick={handleApplySuggestion}>
+              Apply Suggestion
+            </button>
+          </div>
+        ) : null}
+
+        {suggestionMessage ? <p className="success-text">{suggestionMessage}</p> : null}
+        {suggestionError ? <p className="error-message">{suggestionError}</p> : null}
 
         {createdTicket ? (
           <div className="success-message">
@@ -1260,6 +1369,8 @@ function CreateTicketPage({ user }: { user: LoginUser | null }) {
     </main>
   );
 }
+
+
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
