@@ -186,17 +186,23 @@ public class Ticket {
     }
 
     public void changeStatus(TicketStatus status) {
+        applyStatus(status, OffsetDateTime.now());
+    }
+
+    public void applyStatus(TicketStatus status, OffsetDateTime changedAt) {
         this.status = status;
-    }
 
-    public void markResolved(OffsetDateTime resolvedAt) {
-        this.status = TicketStatus.RESOLVED;
-        this.resolvedAt = resolvedAt;
-    }
+        if (status == TicketStatus.RESOLVED) {
+            this.resolvedAt = changedAt;
+        }
 
-    public void markClosed(OffsetDateTime closedAt) {
-        this.status = TicketStatus.CLOSED;
-        this.closedAt = closedAt;
+        if (status == TicketStatus.CLOSED) {
+            this.closedAt = changedAt;
+        }
+
+        if (status == TicketStatus.REOPENED) {
+            this.closedAt = null;
+        }
     }
 
     public void markSlaBreached() {

@@ -2,12 +2,14 @@ package com.opsflow.ticket;
 
 import com.opsflow.user.AppUser;
 import com.opsflow.user.AppUserRepository;
+import com.opsflow.user.Role;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.authentication.BadCredentialsException;
 
 import java.time.OffsetDateTime;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -20,18 +22,20 @@ class TicketServiceTest {
     private final TicketNumberGenerator ticketNumberGenerator = mock(TicketNumberGenerator.class);
     private final PriorityCalculationService priorityCalculationService = mock(PriorityCalculationService.class);
     private final SlaCalculationService slaCalculationService = mock(SlaCalculationService.class);
+    private final TicketStatusTransitionService ticketStatusTransitionService = mock(TicketStatusTransitionService.class);
 
     private final TicketService ticketService = new TicketService(
             ticketRepository,
             appUserRepository,
             ticketNumberGenerator,
             priorityCalculationService,
-            slaCalculationService
+            slaCalculationService,
+            ticketStatusTransitionService
     );
 
     @Test
     void createTicketGeneratesNumberCalculatesPriorityCalculatesSlaAndSavesNewTicket() {
-        AppUser requester = mock(AppUser.class);
+        AppUser requester = mockUser(1L, "requester@opsflow.demo", "Riley Requester", "REQUESTER");
         OffsetDateTime slaDueAt = OffsetDateTime.parse("2026-05-09T16:00:00Z");
 
         CreateTicketRequest request = new CreateTicketRequest(
@@ -41,11 +45,6 @@ class TicketServiceTest {
                 Impact.HIGH,
                 Urgency.HIGH
         );
-
-        when(requester.getId()).thenReturn(1L);
-        when(requester.getEmail()).thenReturn("requester@opsflow.demo");
-        when(requester.getDisplayName()).thenReturn("Riley Requester");
-        when(requester.isEnabled()).thenReturn(true);
 
         when(appUserRepository.findByEmailIgnoreCase("requester@opsflow.demo"))
                 .thenReturn(Optional.of(requester));
@@ -104,5 +103,61 @@ class TicketServiceTest {
         );
 
         verify(ticketRepository, never()).save(any(Ticket.class));
+    }
+
+    @Test
+    void requesterSeesOnlyOwnTickets() {
+        AppUser requester = mockUser(1L, "requester@opsflow.demo", "Riley Requester", "REQUESTER");
+
+        when(appUserRepository.findByEmailIgnoreCase("requester@opsflow.demo"))
+                .thenReturn(Optional.of(requester));
+
+        ticketService.listTicketsForUser("requester@opsflow.demo");
+
+        verify(ticketRepository).findByRequesterEmailIgnoreCaseOrderByCreatedAtDesc("requester@opsflow.demo");
+        verify(ticketRepository, never()).findVisibleToAnalyst(anyString());
+        verify(ticketRepository, never()).findAllByOrderByCreatedAtDesc();
+    }
+
+    @Test
+    void analystSeesAssignedAndUnassignedTickets() {
+        AppUser analyst = mockUser(2L, "analyst@opsflow.demo", "Alex Analyst", "ANALYST");
+
+        when(appUserRepository.findByEmailIgnoreCase("analyst@opsflow.demo"))
+                .thenReturn(Optional.of(analyst));
+
+        ticketService.listTicketsForUser("analyst@opsflow.demo");
+
+        verify(ticketRepository).findVisibleToAnalyst("analyst@opsflow.demo");
+        verify(ticketRepository, never()).findByRequesterEmailIgnoreCaseOrderByCreatedAtDesc(anyString());
+        verify(ticketRepository, never()).findAllByOrderByCreatedAtDesc();
+    }
+
+    @Test
+    void managerSeesAllTickets() {
+        AppUser manager = mockUser(3L, "manager@opsflow.demo", "Morgan Manager", "MANAGER");
+
+        when(appUserRepository.findByEmailIgnoreCase("manager@opsflow.demo"))
+                .thenReturn(Optional.of(manager));
+
+        ticketService.listTicketsForUser("manager@opsflow.demo");
+
+        verify(ticketRepository).findAllByOrderByCreatedAtDesc();
+        verify(ticketRepository, never()).findByRequesterEmailIgnoreCaseOrderByCreatedAtDesc(anyString());
+        verify(ticketRepository, never()).findVisibleToAnalyst(anyString());
+    }
+
+    private AppUser mockUser(Long id, String email, String displayName, String roleName) {
+        AppUser user = mock(AppUser.class);
+        Role role = mock(Role.class);
+
+        when(role.getName()).thenReturn(roleName);
+        when(user.getId()).thenReturn(id);
+        when(user.getEmail()).thenReturn(email);
+        when(user.getDisplayName()).thenReturn(displayName);
+        when(user.isEnabled()).thenReturn(true);
+        when(user.getRoles()).thenReturn(Set.of(role));
+
+        return user;
     }
 }
