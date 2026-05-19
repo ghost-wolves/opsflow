@@ -18,6 +18,7 @@ public record TicketResponse(
         Long assignedToId,
         String assignedToEmail,
         String assignedToDisplayName,
+        SlaRisk slaRisk,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         OffsetDateTime slaDueAt,
@@ -27,6 +28,11 @@ public record TicketResponse(
 ) {
 
     public static TicketResponse from(Ticket ticket) {
+        SlaRisk slaRisk = new SlaRiskCalculationService().calculate(ticket);
+        return from(ticket, slaRisk);
+    }
+
+    static TicketResponse from(Ticket ticket, SlaRisk slaRisk) {
         var requester = ticket.getRequester();
         var assignedTo = ticket.getAssignedTo();
 
@@ -46,6 +52,7 @@ public record TicketResponse(
                 assignedTo == null ? null : assignedTo.getId(),
                 assignedTo == null ? null : assignedTo.getEmail(),
                 assignedTo == null ? null : assignedTo.getDisplayName(),
+                slaRisk,
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt(),
                 ticket.getSlaDueAt(),

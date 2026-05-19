@@ -56,6 +56,7 @@ type TicketResponse = {
   assignedToId: number | null;
   assignedToEmail: string | null;
   assignedToDisplayName: string | null;
+  slaRisk: string;
   createdAt: string;
   updatedAt: string;
   slaDueAt: string;
@@ -113,6 +114,19 @@ function getAuthHeader(): Record<string, string> {
 function hasRole(user: LoginUser | null, role: string): boolean {
   return user?.roles.includes(role) ?? false;
 }
+
+function formatEnumLabel(value: string): string {
+  return value.replaceAll('_', ' ');
+}
+
+function getSlaRiskClassName(slaRisk: string): string {
+  return `risk-badge risk-${slaRisk.toLowerCase().replaceAll('_', '-')}`;
+}
+
+function SlaRiskBadge({ slaRisk }: { slaRisk: string }) {
+  return <span className={getSlaRiskClassName(slaRisk)}>{formatEnumLabel(slaRisk)}</span>;
+}
+
 
 function App() {
   const [user, setUser] = useState<LoginUser | null>(getStoredUser());
@@ -589,6 +603,7 @@ function QueueSection({
                   </td>
                   <td>{ticket.priority}</td>
                   <td>{ticket.status}</td>
+                  <td><SlaRiskBadge slaRisk={ticket.slaRisk} /></td>
                   <td>{new Date(ticket.slaDueAt).toLocaleString()}</td>
                   {showClaimButton ? (
                     <td>
@@ -933,6 +948,11 @@ function TicketDetailPage({ user }: { user: LoginUser | null }) {
               </div>
 
               <div>
+                <span className="detail-label">SLA Risk</span>
+                <strong><SlaRiskBadge slaRisk={ticket.slaRisk} /></strong>
+              </div>
+
+              <div>
                 <span className="detail-label">SLA Breached</span>
                 <strong>{ticket.slaBreached ? 'Yes' : 'No'}</strong>
               </div>
@@ -1071,6 +1091,7 @@ function MyTicketsPage({ user }: { user: LoginUser | null }) {
                   <th>Title</th>
                   <th>Priority</th>
                   <th>Status</th>
+                  <th>SLA Risk</th>
                   <th>SLA Due</th>
                   <th>Created</th>
                 </tr>
@@ -1086,6 +1107,7 @@ function MyTicketsPage({ user }: { user: LoginUser | null }) {
                     </td>
                     <td>{ticket.priority}</td>
                     <td>{ticket.status}</td>
+                    <td><SlaRiskBadge slaRisk={ticket.slaRisk} /></td>
                     <td>{new Date(ticket.slaDueAt).toLocaleString()}</td>
                     <td>{new Date(ticket.createdAt).toLocaleString()}</td>
                   </tr>
@@ -1228,6 +1250,7 @@ function CreateTicketPage({ user }: { user: LoginUser | null }) {
             <strong>Ticket {createdTicket.ticketNumber} created successfully.</strong>
             <span>Priority: {createdTicket.priority}</span>
             <span>Status: {createdTicket.status}</span>
+            <span>SLA Risk: <SlaRiskBadge slaRisk={createdTicket.slaRisk} /></span>
             <span>SLA Due: {new Date(createdTicket.slaDueAt).toLocaleString()}</span>
           </div>
         ) : null}
