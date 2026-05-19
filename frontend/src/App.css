@@ -186,3 +186,88 @@ button:disabled {
   background: #ecfdf3;
   color: #05603a;
 }
+
+.page-title-row {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-title-row h1,
+.page-title-row p {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.ticket-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.ticket-table th,
+.ticket-table td {
+  border-bottom: 1px solid #d9deea;
+  padding: 0.9rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.ticket-table th {
+  background: #f7f8fb;
+  color: #344054;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.ticket-table td {
+  color: #172033;
+}
+
+.detail-layout {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.detail-section {
+  border: 1px solid #d9deea;
+  border-radius: 0.9rem;
+  padding: 1.25rem;
+}
+
+.detail-section h2 {
+  margin: 0 0 0.5rem;
+}
+
+.detail-title {
+  color: #172033;
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.detail-grid div {
+  border: 1px solid #d9deea;
+  border-radius: 0.9rem;
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+}
+
+.detail-label {
+  color: #667085;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}

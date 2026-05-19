@@ -1,5 +1,5 @@
-import { FormEvent, ReactNode, useState } from 'react';
-import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { FormEvent, ReactNode, useEffect, useState } from 'react';
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import './App.css';
 
 type LoginUser = {
@@ -26,9 +26,18 @@ type TicketResponse = {
   urgency: string;
   priority: string;
   status: string;
+  requesterId: number;
   requesterEmail: string;
   requesterDisplayName: string;
+  assignedToId: number | null;
+  assignedToEmail: string | null;
+  assignedToDisplayName: string | null;
+  createdAt: string;
+  updatedAt: string;
   slaDueAt: string;
+  resolvedAt: string | null;
+  closedAt: string | null;
+  slaBreached: boolean;
 };
 
 const DEMO_ACCOUNTS: DemoAccount[] = [
@@ -114,7 +123,7 @@ function App() {
           path="/tickets"
           element={
             <ProtectedRoute user={user}>
-              <PlaceholderPage title="My Tickets" />
+              <MyTicketsPage user={user} />
             </ProtectedRoute>
           }
         />
@@ -124,6 +133,15 @@ function App() {
           element={
             <ProtectedRoute user={user}>
               <CreateTicketPage user={user} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/tickets/:ticketId"
+          element={
+            <ProtectedRoute user={user}>
+              <TicketDetailPage />
             </ProtectedRoute>
           }
         />
@@ -344,6 +362,272 @@ function LoginPage({ onLogin }: { onLogin: (user: LoginUser) => void }) {
         </form>
 
         {error ? <p className="error-message">{error}</p> : null}
+      </section>
+    </main>
+  );
+}
+
+
+
+function TicketDetailPage() {
+  const { ticketId } = useParams();
+  const [ticket, setTicket] = useState<TicketResponse | null>(null);
+  const [error, setError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadTicket() {
+      setError('');
+      setIsLoading(true);
+
+      try {
+        const response = await fetch(`/api/tickets/${ticketId}`, {
+          headers: {
+            ...getAuthHeader(),
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Unable to load ticket.');
+        }
+
+        const data = (await response.json()) as TicketResponse;
+
+        if (isActive) {
+          setTicket(data);
+        }
+      } catch {
+        if (isActive) {
+          setError('Unable to load ticket.');
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadTicket();
+
+    return () => {
+      isActive = false;
+    };
+  }, [ticketId]);
+
+  return (
+    <main className="page-container">
+      <section className="content-card">
+        <div className="page-title-row">
+          <div>
+            <h1>Ticket Detail</h1>
+            <p>Review ticket information, priority, status, and SLA timing.</p>
+          </div>
+
+          <Link className="primary-link" to="/tickets">
+            Back to Tickets
+          </Link>
+        </div>
+
+        {isLoading ? <p>Loading ticket...</p> : null}
+
+        {error ? <p className="error-message">{error}</p> : null}
+
+        {!isLoading && !error && ticket ? (
+          <div className="detail-layout">
+            <section className="detail-section">
+              <h2>{ticket.ticketNumber}</h2>
+              <p className="detail-title">{ticket.title}</p>
+              <p>{ticket.description}</p>
+            </section>
+
+            <section className="detail-grid">
+              <div>
+                <span className="detail-label">Affected System</span>
+                <strong>{ticket.affectedSystem}</strong>
+              </div>
+
+              <div>
+                <span className="detail-label">Impact</span>
+                <strong>{ticket.impact}</strong>
+              </div>
+
+              <div>
+                <span className="detail-label">Urgency</span>
+                <strong>{ticket.urgency}</strong>
+              </div>
+
+              <div>
+                <span className="detail-label">Priority</span>
+                <strong>{ticket.priority}</strong>
+              </div>
+
+              <div>
+                <span className="detail-label">Status</span>
+                <strong>{ticket.status}</strong>
+              </div>
+
+              <div>
+                <span className="detail-label">SLA Breached</span>
+                <strong>{ticket.slaBreached ? 'Yes' : 'No'}</strong>
+              </div>
+
+              <div>
+                <span className="detail-label">Requester</span>
+                <strong>{ticket.requesterDisplayName}</strong>
+                <span>{ticket.requesterEmail}</span>
+              </div>
+
+              <div>
+                <span className="detail-label">Assigned Analyst</span>
+                <strong>{ticket.assignedToDisplayName ?? 'Unassigned'}</strong>
+                {ticket.assignedToEmail ? <span>{ticket.assignedToEmail}</span> : null}
+              </div>
+
+              <div>
+                <span className="detail-label">Created</span>
+                <strong>{new Date(ticket.createdAt).toLocaleString()}</strong>
+              </div>
+
+              <div>
+                <span className="detail-label">Updated</span>
+                <strong>{new Date(ticket.updatedAt).toLocaleString()}</strong>
+              </div>
+
+              <div>
+                <span className="detail-label">SLA Due</span>
+                <strong>{new Date(ticket.slaDueAt).toLocaleString()}</strong>
+              </div>
+
+              <div>
+                <span className="detail-label">Resolved</span>
+                <strong>{ticket.resolvedAt ? new Date(ticket.resolvedAt).toLocaleString() : 'Not resolved'}</strong>
+              </div>
+
+              <div>
+                <span className="detail-label">Closed</span>
+                <strong>{ticket.closedAt ? new Date(ticket.closedAt).toLocaleString() : 'Not closed'}</strong>
+              </div>
+            </section>
+          </div>
+        ) : null}
+      </section>
+    </main>
+  );
+}
+
+function MyTicketsPage({ user }: { user: LoginUser | null }) {
+  const [tickets, setTickets] = useState<TicketResponse[]>([]);
+  const [error, setError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadTickets() {
+      setError('');
+      setIsLoading(true);
+
+      try {
+        const response = await fetch('/api/tickets', {
+          headers: {
+            ...getAuthHeader(),
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Unable to load tickets.');
+        }
+
+        const data = (await response.json()) as TicketResponse[];
+
+        if (isActive) {
+          setTickets(data);
+        }
+      } catch {
+        if (isActive) {
+          setError('Unable to load tickets.');
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadTickets();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  if (!hasRole(user, 'REQUESTER')) {
+    return (
+      <main className="centered-page">
+        <section className="hero-card">
+          <h1>Access Denied</h1>
+          <p>Only requesters can view My Tickets.</p>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="page-container">
+      <section className="content-card">
+        <div className="page-title-row">
+          <div>
+            <h1>My Tickets</h1>
+            <p>View tickets you have submitted for support.</p>
+          </div>
+
+          <Link className="primary-link" to="/tickets/new">
+            Create Ticket
+          </Link>
+        </div>
+
+        {isLoading ? <p>Loading tickets...</p> : null}
+
+        {error ? <p className="error-message">{error}</p> : null}
+
+        {!isLoading && !error && tickets.length === 0 ? (
+          <p>No tickets found.</p>
+        ) : null}
+
+        {!isLoading && !error && tickets.length > 0 ? (
+          <div className="table-wrapper">
+            <table className="ticket-table">
+              <thead>
+                <tr>
+                  <th>Ticket</th>
+                  <th>Title</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>SLA Due</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tickets.map((ticket) => (
+                  <tr key={ticket.id}>
+                    <td>
+                      <Link to={`/tickets/${ticket.id}`}>{ticket.ticketNumber}</Link>
+                    </td>
+                    <td>
+                      <Link to={`/tickets/${ticket.id}`}>{ticket.title}</Link>
+                    </td>
+                    <td>{ticket.priority}</td>
+                    <td>{ticket.status}</td>
+                    <td>{new Date(ticket.slaDueAt).toLocaleString()}</td>
+                    <td>{new Date(ticket.createdAt).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </section>
     </main>
   );
