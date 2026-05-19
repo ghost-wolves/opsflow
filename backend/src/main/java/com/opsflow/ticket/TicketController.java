@@ -12,9 +12,17 @@ import java.util.List;
 public class TicketController {
 
     private final TicketService ticketService;
+    private final TicketCommentService ticketCommentService;
+    private final TicketAuditService ticketAuditService;
 
-    public TicketController(TicketService ticketService) {
+    public TicketController(
+            TicketService ticketService,
+            TicketCommentService ticketCommentService,
+            TicketAuditService ticketAuditService
+    ) {
         this.ticketService = ticketService;
+        this.ticketCommentService = ticketCommentService;
+        this.ticketAuditService = ticketAuditService;
     }
 
     @PostMapping
@@ -68,5 +76,33 @@ public class TicketController {
             Authentication authentication
     ) {
         return ticketService.claimTicket(ticketId, authentication.getName());
+    }
+
+    @PostMapping("/{ticketId}/comments")
+    @PreAuthorize("hasAnyRole('REQUESTER', 'ANALYST', 'MANAGER')")
+    public TicketCommentResponse addComment(
+            @PathVariable Long ticketId,
+            @Valid @RequestBody CreateTicketCommentRequest request,
+            Authentication authentication
+    ) {
+        return ticketCommentService.addComment(ticketId, request, authentication.getName());
+    }
+
+    @GetMapping("/{ticketId}/comments")
+    @PreAuthorize("hasAnyRole('REQUESTER', 'ANALYST', 'MANAGER')")
+    public List<TicketCommentResponse> listComments(
+            @PathVariable Long ticketId,
+            Authentication authentication
+    ) {
+        return ticketCommentService.listComments(ticketId, authentication.getName());
+    }
+
+    @GetMapping("/{ticketId}/audit-events")
+    @PreAuthorize("hasAnyRole('REQUESTER', 'ANALYST', 'MANAGER')")
+    public List<TicketAuditEventResponse> listAuditEvents(
+            @PathVariable Long ticketId,
+            Authentication authentication
+    ) {
+        return ticketAuditService.listAuditEvents(ticketId, authentication.getName());
     }
 }

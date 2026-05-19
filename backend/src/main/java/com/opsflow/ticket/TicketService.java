@@ -21,6 +21,7 @@ public class TicketService {
     private final PriorityCalculationService priorityCalculationService;
     private final SlaCalculationService slaCalculationService;
     private final TicketStatusTransitionService ticketStatusTransitionService;
+    private final TicketAuditService ticketAuditService;
 
     public TicketService(
             TicketRepository ticketRepository,
@@ -28,7 +29,8 @@ public class TicketService {
             TicketNumberGenerator ticketNumberGenerator,
             PriorityCalculationService priorityCalculationService,
             SlaCalculationService slaCalculationService,
-            TicketStatusTransitionService ticketStatusTransitionService
+            TicketStatusTransitionService ticketStatusTransitionService,
+            TicketAuditService ticketAuditService
     ) {
         this.ticketRepository = ticketRepository;
         this.appUserRepository = appUserRepository;
@@ -36,6 +38,7 @@ public class TicketService {
         this.priorityCalculationService = priorityCalculationService;
         this.slaCalculationService = slaCalculationService;
         this.ticketStatusTransitionService = ticketStatusTransitionService;
+        this.ticketAuditService = ticketAuditService;
     }
 
     @Transactional
@@ -61,6 +64,15 @@ public class TicketService {
         );
 
         Ticket savedTicket = ticketRepository.save(ticket);
+
+        ticketAuditService.record(
+                savedTicket,
+                requester,
+                TicketAuditEventType.TICKET_CREATED,
+                null,
+                savedTicket.getStatus().name(),
+                "Ticket " + savedTicket.getTicketNumber() + " was created."
+        );
 
         return TicketResponse.from(savedTicket);
     }
@@ -114,10 +126,23 @@ public class TicketService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have access to this ticket.");
         }
 
-        ticketStatusTransitionService.validateTransition(ticket.getStatus(), request.status());
+        TicketStatus oldStatus = ticket.getStatus();
+
+        ticketStatusTransitionService.validateTransition(oldStatus, request.status());
         ticket.changeStatus(request.status());
 
-        return TicketResponse.from(ticketRepository.save(ticket));
+        Ticket savedTicket = ticketRepository.save(ticket);
+
+        ticketAuditService.record(
+                savedTicket,
+                user,
+                auditEventTypeForStatus(request.status()),
+                oldStatus.name(),
+                request.status().name(),
+                "Status changed from " + oldStatus + " to " + request.status() + "."
+        );
+
+        return TicketResponse.from(savedTicket);
     }
 
     @Transactional
@@ -137,9 +162,22 @@ public class TicketService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Assigned user must have the ANALYST role.");
         }
 
+        String oldAssignee = ticket.getAssignedTo() == null ? null : ticket.getAssignedTo().getEmail();
+
         assignTicketToAnalyst(ticket, analyst);
 
-        return TicketResponse.from(ticketRepository.save(ticket));
+        Ticket savedTicket = ticketRepository.save(ticket);
+
+        ticketAuditService.record(
+                savedTicket,
+                manager,
+                TicketAuditEventType.ASSIGNED,
+                oldAssignee,
+                analyst.getEmail(),
+                "Ticket assigned to " + analyst.getDisplayName() + "."
+        );
+
+        return TicketResponse.from(savedTicket);
     }
 
     @Transactional
@@ -159,7 +197,27 @@ public class TicketService {
 
         assignTicketToAnalyst(ticket, analyst);
 
-        return TicketResponse.from(ticketRepository.save(ticket));
+        Ticket savedTicket = ticketRepository.save(ticket);
+
+        ticketAuditService.record(
+                savedTicket,
+                analyst,
+                TicketAuditEventType.CLAIMED,
+                null,
+                analyst.getEmail(),
+                "Ticket claimed by " + analyst.getDisplayName() + "."
+        );
+
+        return TicketResponse.from(savedTicket);
+    }
+
+    private TicketAuditEventType auditEventTypeForStatus(TicketStatus status) {
+        return switch (status) {
+            case RESOLVED -> TicketAuditEventType.RESOLVED;
+            case CLOSED -> TicketAuditEventType.CLOSED;
+            case REOPENED -> TicketAuditEventType.REOPENED;
+            default -> TicketAuditEventType.STATUS_CHANGED;
+        };
     }
 
     private void assignTicketToAnalyst(Ticket ticket, AppUser analyst) {

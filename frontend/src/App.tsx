@@ -10,6 +10,30 @@ type LoginUser = {
   message: string;
 };
 
+type TicketCommentResponse = {
+  id: number;
+  ticketId: number;
+  authorId: number;
+  authorEmail: string;
+  authorDisplayName: string;
+  body: string;
+  internal: boolean;
+  createdAt: string;
+};
+
+type TicketAuditEventResponse = {
+  id: number;
+  ticketId: number;
+  actorId: number;
+  actorEmail: string;
+  actorDisplayName: string;
+  eventType: string;
+  oldValue: string | null;
+  newValue: string | null;
+  message: string;
+  createdAt: string;
+};
+
 type DemoAccount = {
   label: string;
   email: string;
@@ -608,54 +632,109 @@ function isTicketNearingSla(ticket: TicketResponse): boolean {
 function TicketDetailPage({ user }: { user: LoginUser | null }) {
   const { ticketId } = useParams();
   const [ticket, setTicket] = useState<TicketResponse | null>(null);
+  const [comments, setComments] = useState<TicketCommentResponse[]>([]);
+  const [auditEvents, setAuditEvents] = useState<TicketAuditEventResponse[]>([]);
   const [error, setError] = useState<string>('');
+  const [commentError, setCommentError] = useState<string>('');
+  const [commentMessage, setCommentMessage] = useState<string>('');
   const [statusUpdateError, setStatusUpdateError] = useState<string>('');
   const [statusUpdateMessage, setStatusUpdateMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddingComment, setIsAddingComment] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const canUpdateStatus = hasRole(user, 'ANALYST') || hasRole(user, 'MANAGER');
+  const canCreateInternalComment = hasRole(user, 'ANALYST') || hasRole(user, 'MANAGER');
 
-  useEffect(() => {
-    let isActive = true;
+  async function loadTicketAndComments() {
+    setError('');
+    setIsLoading(true);
 
-    async function loadTicket() {
-      setError('');
-      setIsLoading(true);
-
-      try {
-        const response = await fetch(`/api/tickets/${ticketId}`, {
+    try {
+      const [ticketResponse, commentsResponse, auditEventsResponse] = await Promise.all([
+        fetch(`/api/tickets/${ticketId}`, {
           headers: {
             ...getAuthHeader(),
           },
-        });
+        }),
+        fetch(`/api/tickets/${ticketId}/comments`, {
+          headers: {
+            ...getAuthHeader(),
+          },
+        }),
+        fetch(`/api/tickets/${ticketId}/audit-events`, {
+          headers: {
+            ...getAuthHeader(),
+          },
+        }),
+      ]);
 
-        if (!response.ok) {
-          throw new Error('Unable to load ticket.');
-        }
-
-        const data = (await response.json()) as TicketResponse;
-
-        if (isActive) {
-          setTicket(data);
-        }
-      } catch {
-        if (isActive) {
-          setError('Unable to load ticket.');
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
+      if (!ticketResponse.ok || !commentsResponse.ok || !auditEventsResponse.ok) {
+        throw new Error('Unable to load ticket.');
       }
+
+      const ticketData = (await ticketResponse.json()) as TicketResponse;
+      const commentsData = (await commentsResponse.json()) as TicketCommentResponse[];
+      const auditEventsData = (await auditEventsResponse.json()) as TicketAuditEventResponse[];
+
+      setTicket(ticketData);
+      setComments(commentsData);
+      setAuditEvents(auditEventsData);
+    } catch {
+      setError('Unable to load ticket.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTicketAndComments();
+  }, [ticketId]);
+
+  async function handleAddComment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!ticket) {
+      return;
     }
 
-    loadTicket();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const body = String(formData.get('body'));
+    const internal = canCreateInternalComment && formData.get('internal') === 'on';
 
-    return () => {
-      isActive = false;
-    };
-  }, [ticketId]);
+    setCommentError('');
+    setCommentMessage('');
+    setIsAddingComment(true);
+
+    try {
+      const response = await fetch(`/api/tickets/${ticket.id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          body,
+          internal,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to add comment.');
+      }
+
+      const newComment = (await response.json()) as TicketCommentResponse;
+
+      setComments((currentComments) => [...currentComments, newComment]);
+      setCommentMessage('Comment added.');
+      form.reset();
+    } catch {
+      setCommentError('Unable to add comment.');
+    } finally {
+      setIsAddingComment(false);
+    }
+  }
 
   async function handleStatusUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -703,11 +782,11 @@ function TicketDetailPage({ user }: { user: LoginUser | null }) {
         <div className="page-title-row">
           <div>
             <h1>Ticket Detail</h1>
-            <p>Review ticket information, priority, status, and SLA timing.</p>
+            <p>Review ticket information, priority, status, comments, and SLA timing.</p>
           </div>
 
-          <Link className="primary-link" to="/tickets">
-            Back to Tickets
+          <Link className="primary-link" to={hasRole(user, 'ANALYST') ? '/queue' : '/tickets'}>
+            Back
           </Link>
         </div>
 
@@ -748,15 +827,84 @@ function TicketDetailPage({ user }: { user: LoginUser | null }) {
                   </button>
                 </form>
 
-                {statusUpdateMessage ? (
-                  <p className="success-text">{statusUpdateMessage}</p>
-                ) : null}
-
-                {statusUpdateError ? (
-                  <p className="error-message">{statusUpdateError}</p>
-                ) : null}
+                {statusUpdateMessage ? <p className="success-text">{statusUpdateMessage}</p> : null}
+                {statusUpdateError ? <p className="error-message">{statusUpdateError}</p> : null}
               </section>
             ) : null}
+
+            <section className="comments-card">
+              <h2>Comments</h2>
+
+              <form onSubmit={handleAddComment} className="comment-form">
+                <label>
+                  Add Comment
+                  <textarea
+                    name="body"
+                    maxLength={5000}
+                    required
+                    placeholder="Add a status update or question..."
+                  />
+                </label>
+
+                {canCreateInternalComment ? (
+                  <label className="checkbox-label">
+                    <input name="internal" type="checkbox" />
+                    Internal comment
+                  </label>
+                ) : null}
+
+                <button type="submit" disabled={isAddingComment}>
+                  {isAddingComment ? 'Adding...' : 'Add Comment'}
+                </button>
+              </form>
+
+              {commentMessage ? <p className="success-text">{commentMessage}</p> : null}
+              {commentError ? <p className="error-message">{commentError}</p> : null}
+
+              <div className="comments-list">
+                {comments.length === 0 ? (
+                  <p>No comments yet.</p>
+                ) : (
+                  comments.map((comment) => (
+                    <article key={comment.id} className="comment-item">
+                      <div className="comment-header">
+                        <strong>{comment.authorDisplayName}</strong>
+                        <span>{new Date(comment.createdAt).toLocaleString()}</span>
+                        {comment.internal ? <span className="internal-badge">Internal</span> : null}
+                      </div>
+                      <p>{comment.body}</p>
+                    </article>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <section className="audit-card">
+              <h2>Audit Trail</h2>
+
+              {auditEvents.length === 0 ? (
+                <p>No audit events yet.</p>
+              ) : (
+                <div className="audit-list">
+                  {auditEvents.map((event) => (
+                    <article key={event.id} className="audit-item">
+                      <div className="audit-header">
+                        <strong>{event.eventType.replaceAll('_', ' ')}</strong>
+                        <span>{new Date(event.createdAt).toLocaleString()}</span>
+                      </div>
+
+                      <p>{event.message}</p>
+
+                      <div className="audit-meta">
+                        <span>Actor: {event.actorDisplayName}</span>
+                        {event.oldValue ? <span>From: {event.oldValue}</span> : null}
+                        {event.newValue ? <span>To: {event.newValue}</span> : null}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
 
             <section className="detail-grid">
               <div>
@@ -832,6 +980,7 @@ function TicketDetailPage({ user }: { user: LoginUser | null }) {
     </main>
   );
 }
+
 
 
 function MyTicketsPage({ user }: { user: LoginUser | null }) {
