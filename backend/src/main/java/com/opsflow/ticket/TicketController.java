@@ -50,4 +50,23 @@ public class TicketController {
     ) {
         return ticketService.updateTicketStatus(ticketId, request, authentication.getName());
     }
+
+    @PatchMapping("/{ticketId}/assign")
+    @PreAuthorize("hasRole('MANAGER')")
+    public TicketResponse assignTicket(
+            @PathVariable Long ticketId,
+            @Valid @RequestBody AssignTicketRequest request,
+            Authentication authentication
+    ) {
+        return ticketService.assignTicket(ticketId, request, authentication.getName());
+    }
+
+    @PatchMapping("/{ticketId}/claim")
+    @PreAuthorize("hasRole('ANALYST')")
+    public TicketResponse claimTicket(
+            @PathVariable Long ticketId,
+            Authentication authentication
+    ) {
+        return ticketService.claimTicket(ticketId, authentication.getName());
+    }
 }

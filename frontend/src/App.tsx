@@ -150,7 +150,7 @@ function App() {
           path="/queue"
           element={
             <ProtectedRoute user={user}>
-              <PlaceholderPage title="Queue" />
+              <AnalystQueuePage user={user} />
             </ProtectedRoute>
           }
         />
@@ -367,6 +367,242 @@ function LoginPage({ onLogin }: { onLogin: (user: LoginUser) => void }) {
   );
 }
 
+
+
+
+function AnalystQueuePage({ user }: { user: LoginUser | null }) {
+  const [tickets, setTickets] = useState<TicketResponse[]>([]);
+  const [error, setError] = useState<string>('');
+  const [claimMessage, setClaimMessage] = useState<string>('');
+  const [claimError, setClaimError] = useState<string>('');
+  const [claimingTicketId, setClaimingTicketId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  async function loadTickets() {
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/tickets', {
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to load queue.');
+      }
+
+      const data = (await response.json()) as TicketResponse[];
+      setTickets(data);
+    } catch {
+      setError('Unable to load analyst queue.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  async function handleClaimTicket(ticket: TicketResponse) {
+    setClaimMessage('');
+    setClaimError('');
+    setClaimingTicketId(ticket.id);
+
+    try {
+      const response = await fetch(`/api/tickets/${ticket.id}/claim`, {
+        method: 'PATCH',
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to claim ticket.');
+      }
+
+      const claimedTicket = (await response.json()) as TicketResponse;
+
+      setTickets((currentTickets) =>
+        currentTickets.map((currentTicket) =>
+          currentTicket.id === claimedTicket.id ? claimedTicket : currentTicket,
+        ),
+      );
+
+      setClaimMessage(`Claimed ${claimedTicket.ticketNumber}.`);
+    } catch {
+      setClaimError('Unable to claim ticket.');
+    } finally {
+      setClaimingTicketId(null);
+    }
+  }
+
+  if (!hasRole(user, 'ANALYST')) {
+    return (
+      <main className="centered-page">
+        <section className="hero-card">
+          <h1>Access Denied</h1>
+          <p>Only analysts can view the queue.</p>
+        </section>
+      </main>
+    );
+  }
+
+  const unassignedTickets = tickets.filter((ticket) => ticket.assignedToEmail === null);
+  const assignedToMeTickets = tickets.filter(
+    (ticket) => ticket.assignedToEmail === user?.email,
+  );
+  const overdueTickets = tickets.filter(isTicketOverdue);
+  const nearingSlaTickets = tickets.filter(isTicketNearingSla);
+
+  return (
+    <main className="page-container">
+      <section className="content-card">
+        <div className="page-title-row">
+          <div>
+            <h1>Analyst Queue</h1>
+            <p>Review unassigned work, assigned tickets, and SLA risk.</p>
+          </div>
+
+          <Link className="primary-link" to="/">
+            Back
+          </Link>
+        </div>
+
+        {isLoading ? <p>Loading queue...</p> : null}
+
+        {error ? <p className="error-message">{error}</p> : null}
+
+        {claimMessage ? <p className="success-text">{claimMessage}</p> : null}
+        {claimError ? <p className="error-message">{claimError}</p> : null}
+
+        {!isLoading && !error ? (
+          <div className="queue-layout">
+            <QueueSection
+              title="Unassigned Tickets"
+              description="Tickets available for analyst ownership."
+              tickets={unassignedTickets}
+              showClaimButton
+              claimingTicketId={claimingTicketId}
+              onClaimTicket={handleClaimTicket}
+            />
+
+            <QueueSection
+              title="Assigned to Me"
+              description="Tickets currently assigned to your analyst account."
+              tickets={assignedToMeTickets}
+            />
+
+            <QueueSection
+              title="Nearing SLA"
+              description="Tickets due soon and not yet resolved."
+              tickets={nearingSlaTickets}
+            />
+
+            <QueueSection
+              title="Overdue Tickets"
+              description="Tickets past their SLA due time."
+              tickets={overdueTickets}
+            />
+          </div>
+        ) : null}
+      </section>
+    </main>
+  );
+}
+
+function QueueSection({
+  title,
+  description,
+  tickets,
+  showClaimButton = false,
+  claimingTicketId = null,
+  onClaimTicket,
+}: {
+  title: string;
+  description: string;
+  tickets: TicketResponse[];
+  showClaimButton?: boolean;
+  claimingTicketId?: number | null;
+  onClaimTicket?: (ticket: TicketResponse) => void;
+}) {
+  return (
+    <section className="queue-section">
+      <div className="queue-section-header">
+        <div>
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+
+        <span className="queue-count">{tickets.length}</span>
+      </div>
+
+      {tickets.length === 0 ? (
+        <p>No tickets in this section.</p>
+      ) : (
+        <div className="table-wrapper">
+          <table className="ticket-table">
+            <thead>
+              <tr>
+                <th>Ticket</th>
+                <th>Title</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>SLA Due</th>
+                {showClaimButton ? <th>Action</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {tickets.map((ticket) => (
+                <tr key={`${title}-${ticket.id}`}>
+                  <td>
+                    <Link to={`/tickets/${ticket.id}`}>{ticket.ticketNumber}</Link>
+                  </td>
+                  <td>
+                    <Link to={`/tickets/${ticket.id}`}>{ticket.title}</Link>
+                  </td>
+                  <td>{ticket.priority}</td>
+                  <td>{ticket.status}</td>
+                  <td>{new Date(ticket.slaDueAt).toLocaleString()}</td>
+                  {showClaimButton ? (
+                    <td>
+                      <button
+                        type="button"
+                        className="small-action-button"
+                        disabled={claimingTicketId === ticket.id}
+                        onClick={() => onClaimTicket?.(ticket)}
+                      >
+                        {claimingTicketId === ticket.id ? 'Claiming...' : 'Claim'}
+                      </button>
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function isTicketClosedOrResolved(ticket: TicketResponse): boolean {
+  return ticket.status === 'RESOLVED' || ticket.status === 'CLOSED';
+}
+
+function isTicketOverdue(ticket: TicketResponse): boolean {
+  return !isTicketClosedOrResolved(ticket) && new Date(ticket.slaDueAt).getTime() < Date.now();
+}
+
+function isTicketNearingSla(ticket: TicketResponse): boolean {
+  const dueAt = new Date(ticket.slaDueAt).getTime();
+  const now = Date.now();
+  const fourHoursFromNow = now + 4 * 60 * 60 * 1000;
+
+  return !isTicketClosedOrResolved(ticket) && dueAt >= now && dueAt <= fourHoursFromNow;
+}
 
 
 function TicketDetailPage({ user }: { user: LoginUser | null }) {

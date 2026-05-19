@@ -120,6 +120,56 @@ public class TicketService {
         return TicketResponse.from(ticketRepository.save(ticket));
     }
 
+    @Transactional
+    public TicketResponse assignTicket(Long ticketId, AssignTicketRequest request, String managerEmail) {
+        AppUser manager = findEnabledUserByEmail(managerEmail);
+
+        if (!hasRole(manager, "MANAGER")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only managers can assign tickets.");
+        }
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found."));
+
+        AppUser analyst = findEnabledUserByEmail(request.analystEmail());
+
+        if (!hasRole(analyst, "ANALYST")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Assigned user must have the ANALYST role.");
+        }
+
+        assignTicketToAnalyst(ticket, analyst);
+
+        return TicketResponse.from(ticketRepository.save(ticket));
+    }
+
+    @Transactional
+    public TicketResponse claimTicket(Long ticketId, String analystEmail) {
+        AppUser analyst = findEnabledUserByEmail(analystEmail);
+
+        if (!hasRole(analyst, "ANALYST")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only analysts can claim tickets.");
+        }
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found."));
+
+        if (ticket.getAssignedTo() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ticket is already assigned.");
+        }
+
+        assignTicketToAnalyst(ticket, analyst);
+
+        return TicketResponse.from(ticketRepository.save(ticket));
+    }
+
+    private void assignTicketToAnalyst(Ticket ticket, AppUser analyst) {
+        ticket.assignTo(analyst);
+
+        if (ticket.getStatus() == TicketStatus.NEW || ticket.getStatus() == TicketStatus.TRIAGED) {
+            ticket.changeStatus(TicketStatus.ASSIGNED);
+        }
+    }
+
     private boolean canViewTicket(AppUser user, Ticket ticket) {
         if (hasRole(user, "MANAGER")) {
             return true;

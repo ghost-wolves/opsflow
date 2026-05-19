@@ -312,3 +312,48 @@ button:disabled {
   font-weight: 800;
   margin-top: 1rem;
 }
+
+.queue-layout {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.queue-section {
+  border: 1px solid #d9deea;
+  border-radius: 0.9rem;
+  padding: 1.25rem;
+}
+
+.queue-section-header {
+  align-items: start;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.queue-section-header h2 {
+  margin: 0 0 0.35rem;
+}
+
+.queue-section-header p {
+  margin: 0;
+}
+
+.queue-count {
+  align-items: center;
+  background: #eef4ff;
+  border-radius: 999px;
+  color: #1f5eff;
+  display: inline-flex;
+  font-weight: 800;
+  justify-content: center;
+  min-width: 2.5rem;
+  padding: 0.45rem 0.8rem;
+}
+
+.small-action-button {
+  border-radius: 0.45rem;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.75rem;
+}
