@@ -271,3 +271,44 @@ button:disabled {
   font-weight: 800;
   text-transform: uppercase;
 }
+
+.status-update-card {
+  border: 1px solid #d9deea;
+  border-radius: 0.9rem;
+  padding: 1.25rem;
+}
+
+.status-update-card h2 {
+  margin: 0 0 0.5rem;
+}
+
+.status-update-card p {
+  margin-bottom: 1rem;
+}
+
+.status-update-form {
+  align-items: end;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr auto;
+}
+
+.status-update-form label {
+  color: #344054;
+  display: grid;
+  font-weight: 700;
+  gap: 0.4rem;
+}
+
+.status-update-form select {
+  border: 1px solid #c5ccda;
+  border-radius: 0.5rem;
+  font: inherit;
+  padding: 0.75rem;
+}
+
+.success-text {
+  color: #05603a;
+  font-weight: 800;
+  margin-top: 1rem;
+}

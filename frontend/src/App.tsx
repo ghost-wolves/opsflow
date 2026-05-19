@@ -141,7 +141,7 @@ function App() {
           path="/tickets/:ticketId"
           element={
             <ProtectedRoute user={user}>
-              <TicketDetailPage />
+              <TicketDetailPage user={user} />
             </ProtectedRoute>
           }
         />
@@ -369,11 +369,16 @@ function LoginPage({ onLogin }: { onLogin: (user: LoginUser) => void }) {
 
 
 
-function TicketDetailPage() {
+function TicketDetailPage({ user }: { user: LoginUser | null }) {
   const { ticketId } = useParams();
   const [ticket, setTicket] = useState<TicketResponse | null>(null);
   const [error, setError] = useState<string>('');
+  const [statusUpdateError, setStatusUpdateError] = useState<string>('');
+  const [statusUpdateMessage, setStatusUpdateMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  const canUpdateStatus = hasRole(user, 'ANALYST') || hasRole(user, 'MANAGER');
 
   useEffect(() => {
     let isActive = true;
@@ -416,6 +421,46 @@ function TicketDetailPage() {
     };
   }, [ticketId]);
 
+  async function handleStatusUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!ticket) {
+      return;
+    }
+
+    setStatusUpdateError('');
+    setStatusUpdateMessage('');
+    setIsUpdatingStatus(true);
+
+    const formData = new FormData(event.currentTarget);
+    const nextStatus = String(formData.get('status'));
+
+    try {
+      const response = await fetch(`/api/tickets/${ticket.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          status: nextStatus,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to update status.');
+      }
+
+      const updatedTicket = (await response.json()) as TicketResponse;
+      setTicket(updatedTicket);
+      setStatusUpdateMessage(`Status updated to ${updatedTicket.status}.`);
+    } catch {
+      setStatusUpdateError('Unable to update status. Check that the transition is allowed.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  }
+
   return (
     <main className="page-container">
       <section className="content-card">
@@ -441,6 +486,41 @@ function TicketDetailPage() {
               <p className="detail-title">{ticket.title}</p>
               <p>{ticket.description}</p>
             </section>
+
+            {canUpdateStatus ? (
+              <section className="status-update-card">
+                <h2>Update Status</h2>
+                <p>Move this ticket through the approved workflow.</p>
+
+                <form onSubmit={handleStatusUpdate} className="status-update-form">
+                  <label>
+                    New Status
+                    <select name="status" defaultValue={ticket.status}>
+                      <option value="NEW">New</option>
+                      <option value="TRIAGED">Triaged</option>
+                      <option value="ASSIGNED">Assigned</option>
+                      <option value="IN_PROGRESS">In Progress</option>
+                      <option value="WAITING_ON_USER">Waiting on User</option>
+                      <option value="RESOLVED">Resolved</option>
+                      <option value="CLOSED">Closed</option>
+                      <option value="REOPENED">Reopened</option>
+                    </select>
+                  </label>
+
+                  <button type="submit" disabled={isUpdatingStatus}>
+                    {isUpdatingStatus ? 'Updating...' : 'Update Status'}
+                  </button>
+                </form>
+
+                {statusUpdateMessage ? (
+                  <p className="success-text">{statusUpdateMessage}</p>
+                ) : null}
+
+                {statusUpdateError ? (
+                  <p className="error-message">{statusUpdateError}</p>
+                ) : null}
+              </section>
+            ) : null}
 
             <section className="detail-grid">
               <div>
@@ -516,6 +596,7 @@ function TicketDetailPage() {
     </main>
   );
 }
+
 
 function MyTicketsPage({ user }: { user: LoginUser | null }) {
   const [tickets, setTickets] = useState<TicketResponse[]>([]);
