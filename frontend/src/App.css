@@ -535,3 +535,47 @@ button:disabled {
   flex-wrap: wrap;
   gap: 1rem;
 }
+
+.dashboard-layout {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.dashboard-section {
+  border: 1px solid #d9deea;
+  border-radius: 0.9rem;
+  padding: 1.25rem;
+}
+
+.dashboard-section h2 {
+  margin: 0 0 1rem;
+}
+
+.metric-grid,
+.risk-summary-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.metric-card,
+.risk-summary-card {
+  background: #f7f8fb;
+  border: 1px solid #d9deea;
+  border-radius: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+.metric-card span,
+.risk-summary-card span {
+  color: #667085;
+  font-weight: 800;
+}
+
+.metric-card strong,
+.risk-summary-card strong {
+  color: #172033;
+  font-size: 2rem;
+}

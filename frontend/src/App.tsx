@@ -41,6 +41,22 @@ type TriageSuggestionResponse = {
   explanation: string;
 };
 
+type ManagerDashboardResponse = {
+  totalTickets: number;
+  newTickets: number;
+  triagedTickets: number;
+  assignedTickets: number;
+  inProgressTickets: number;
+  waitingOnUserTickets: number;
+  resolvedTickets: number;
+  closedTickets: number;
+  reopenedTickets: number;
+  unassignedTickets: number;
+  overdueTickets: number;
+  dueSoonTickets: number;
+  breachedSlaTickets: number;
+};
+
 type DemoAccount = {
   label: string;
   email: string;
@@ -213,7 +229,7 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute user={user}>
-              <PlaceholderPage title="Dashboard" />
+              <ManagerDashboardPage user={user} />
             </ProtectedRoute>
           }
         />
@@ -231,7 +247,7 @@ function App() {
           path="/all-tickets"
           element={
             <ProtectedRoute user={user}>
-              <PlaceholderPage title="All Tickets" />
+              <ManagerAllTicketsPage user={user} />
             </ProtectedRoute>
           }
         />
@@ -414,6 +430,275 @@ function LoginPage({ onLogin }: { onLogin: (user: LoginUser) => void }) {
 
 
 
+
+
+
+function ManagerAllTicketsPage({ user }: { user: LoginUser | null }) {
+  const [tickets, setTickets] = useState<TicketResponse[]>([]);
+  const [error, setError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadTickets() {
+      setError('');
+      setIsLoading(true);
+
+      try {
+        const response = await fetch('/api/tickets', {
+          headers: {
+            ...getAuthHeader(),
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Unable to load tickets.');
+        }
+
+        const data = (await response.json()) as TicketResponse[];
+
+        if (isActive) {
+          setTickets(data);
+        }
+      } catch {
+        if (isActive) {
+          setError('Unable to load all tickets.');
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadTickets();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  if (!hasRole(user, 'MANAGER')) {
+    return (
+      <main className="centered-page">
+        <section className="hero-card">
+          <h1>Access Denied</h1>
+          <p>Only managers can view all tickets.</p>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="page-container">
+      <section className="content-card">
+        <div className="page-title-row">
+          <div>
+            <h1>All Tickets</h1>
+            <p>Review every ticket across requesters, analysts, statuses, and SLA risk.</p>
+          </div>
+
+          <Link className="primary-link" to="/dashboard">
+            Back to Dashboard
+          </Link>
+        </div>
+
+        {isLoading ? <p>Loading tickets...</p> : null}
+
+        {error ? <p className="error-message">{error}</p> : null}
+
+        {!isLoading && !error && tickets.length === 0 ? (
+          <p>No tickets found.</p>
+        ) : null}
+
+        {!isLoading && !error && tickets.length > 0 ? (
+          <div className="table-wrapper">
+            <table className="ticket-table">
+              <thead>
+                <tr>
+                  <th>Ticket</th>
+                  <th>Title</th>
+                  <th>Requester</th>
+                  <th>Assigned To</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>SLA Risk</th>
+                  <th>SLA Due</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tickets.map((ticket) => (
+                  <tr key={ticket.id}>
+                    <td>
+                      <Link to={`/tickets/${ticket.id}`}>{ticket.ticketNumber}</Link>
+                    </td>
+                    <td>
+                      <Link to={`/tickets/${ticket.id}`}>{ticket.title}</Link>
+                    </td>
+                    <td>{ticket.requesterDisplayName}</td>
+                    <td>{ticket.assignedToDisplayName ?? 'Unassigned'}</td>
+                    <td>{ticket.priority}</td>
+                    <td>{ticket.status}</td>
+                    <td>
+                      <SlaRiskBadge slaRisk={ticket.slaRisk} />
+                    </td>
+                    <td>{new Date(ticket.slaDueAt).toLocaleString()}</td>
+                    <td>{new Date(ticket.createdAt).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
+    </main>
+  );
+}
+
+function ManagerDashboardPage({ user }: { user: LoginUser | null }) {
+  const [dashboard, setDashboard] = useState<ManagerDashboardResponse | null>(null);
+  const [error, setError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadDashboard() {
+      setError('');
+      setIsLoading(true);
+
+      try {
+        const response = await fetch('/api/dashboard/manager', {
+          headers: {
+            ...getAuthHeader(),
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Unable to load dashboard.');
+        }
+
+        const data = (await response.json()) as ManagerDashboardResponse;
+
+        if (isActive) {
+          setDashboard(data);
+        }
+      } catch {
+        if (isActive) {
+          setError('Unable to load manager dashboard.');
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  if (!hasRole(user, 'MANAGER')) {
+    return (
+      <main className="centered-page">
+        <section className="hero-card">
+          <h1>Access Denied</h1>
+          <p>Only managers can view the dashboard.</p>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="page-container">
+      <section className="content-card">
+        <div className="page-title-row">
+          <div>
+            <h1>Manager Dashboard</h1>
+            <p>Monitor ticket volume, workflow status, assignment, and SLA risk.</p>
+          </div>
+
+          <Link className="primary-link" to="/">
+            Back
+          </Link>
+        </div>
+
+        {isLoading ? <p>Loading dashboard...</p> : null}
+
+        {error ? <p className="error-message">{error}</p> : null}
+
+        {!isLoading && !error && dashboard ? (
+          <div className="dashboard-layout">
+            <section className="dashboard-section">
+              <h2>Summary</h2>
+
+              <div className="metric-grid">
+                <MetricCard label="Total Tickets" value={dashboard.totalTickets} />
+                <MetricCard label="Unassigned" value={dashboard.unassignedTickets} />
+                <MetricCard label="Due Soon" value={dashboard.dueSoonTickets} />
+                <MetricCard label="Overdue" value={dashboard.overdueTickets} />
+                <MetricCard label="Breached SLA" value={dashboard.breachedSlaTickets} />
+              </div>
+            </section>
+
+            <section className="dashboard-section">
+              <h2>Status Breakdown</h2>
+
+              <div className="metric-grid">
+                <MetricCard label="New" value={dashboard.newTickets} />
+                <MetricCard label="Triaged" value={dashboard.triagedTickets} />
+                <MetricCard label="Assigned" value={dashboard.assignedTickets} />
+                <MetricCard label="In Progress" value={dashboard.inProgressTickets} />
+                <MetricCard label="Waiting on User" value={dashboard.waitingOnUserTickets} />
+                <MetricCard label="Resolved" value={dashboard.resolvedTickets} />
+                <MetricCard label="Closed" value={dashboard.closedTickets} />
+                <MetricCard label="Reopened" value={dashboard.reopenedTickets} />
+              </div>
+            </section>
+
+            <section className="dashboard-section">
+              <h2>SLA Risk</h2>
+
+              <div className="risk-summary-grid">
+                <div className="risk-summary-card">
+                  <span className="detail-label">Due Soon</span>
+                  <strong>{dashboard.dueSoonTickets}</strong>
+                  <SlaRiskBadge slaRisk="DUE_SOON" />
+                </div>
+
+                <div className="risk-summary-card">
+                  <span className="detail-label">Overdue</span>
+                  <strong>{dashboard.overdueTickets}</strong>
+                  <SlaRiskBadge slaRisk="OVERDUE" />
+                </div>
+
+                <div className="risk-summary-card">
+                  <span className="detail-label">Breached</span>
+                  <strong>{dashboard.breachedSlaTickets}</strong>
+                  <SlaRiskBadge slaRisk="BREACHED" />
+                </div>
+              </div>
+            </section>
+          </div>
+        ) : null}
+      </section>
+    </main>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="metric-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
 
 function AnalystQueuePage({ user }: { user: LoginUser | null }) {
   const [tickets, setTickets] = useState<TicketResponse[]>([]);
