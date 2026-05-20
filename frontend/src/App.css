@@ -579,3 +579,21 @@ button:disabled {
   color: #172033;
   font-size: 2rem;
 }
+
+.report-card {
+  align-items: center;
+  border: 1px solid #d9deea;
+  border-radius: 0.9rem;
+  display: flex;
+  gap: 1.5rem;
+  justify-content: space-between;
+  padding: 1.25rem;
+}
+
+.report-card h2 {
+  margin: 0 0 0.5rem;
+}
+
+.report-card p {
+  margin: 0;
+}

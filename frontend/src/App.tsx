@@ -238,7 +238,7 @@ function App() {
           path="/reports"
           element={
             <ProtectedRoute user={user}>
-              <PlaceholderPage title="Reports" />
+              <ManagerReportsPage user={user} />
             </ProtectedRoute>
           }
         />
@@ -432,6 +432,93 @@ function LoginPage({ onLogin }: { onLogin: (user: LoginUser) => void }) {
 
 
 
+
+
+function ManagerReportsPage({ user }: { user: LoginUser | null }) {
+  const [error, setError] = useState<string>('');
+  const [message, setMessage] = useState<string>('');
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  async function handleDownloadCsv() {
+    setError('');
+    setMessage('');
+    setIsDownloading(true);
+
+    try {
+      const response = await fetch('/api/reports/tickets.csv', {
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to export CSV.');
+      }
+
+      const csvBlob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(csvBlob);
+
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = 'opsflow-tickets.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(downloadUrl);
+      setMessage('Ticket CSV export downloaded.');
+    } catch {
+      setError('Unable to download ticket CSV export.');
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
+  if (!hasRole(user, 'MANAGER')) {
+    return (
+      <main className="centered-page">
+        <section className="hero-card">
+          <h1>Access Denied</h1>
+          <p>Only managers can view reports.</p>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="page-container">
+      <section className="content-card">
+        <div className="page-title-row">
+          <div>
+            <h1>Reports</h1>
+            <p>Export ticket data for operational review and SLA reporting.</p>
+          </div>
+
+          <Link className="primary-link" to="/dashboard">
+            Back to Dashboard
+          </Link>
+        </div>
+
+        <section className="report-card">
+          <div>
+            <h2>Ticket CSV Export</h2>
+            <p>
+              Download all tickets with requester, assignee, priority, status,
+              SLA risk, SLA due date, and timestamps.
+            </p>
+          </div>
+
+          <button type="button" onClick={handleDownloadCsv} disabled={isDownloading}>
+            {isDownloading ? 'Downloading...' : 'Download Ticket CSV'}
+          </button>
+        </section>
+
+        {message ? <p className="success-text">{message}</p> : null}
+        {error ? <p className="error-message">{error}</p> : null}
+      </section>
+    </main>
+  );
+}
 
 function ManagerAllTicketsPage({ user }: { user: LoginUser | null }) {
   const [tickets, setTickets] = useState<TicketResponse[]>([]);
