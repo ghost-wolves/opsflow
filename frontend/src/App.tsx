@@ -1,6 +1,14 @@
-import { FormEvent, ReactNode, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import './App.css';
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
+function apiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
+
 
 type LoginUser = {
   userId: number;
@@ -344,7 +352,7 @@ function LoginPage({ onLogin }: { onLogin: (user: LoginUser) => void }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -445,7 +453,7 @@ function ManagerReportsPage({ user }: { user: LoginUser | null }) {
     setIsDownloading(true);
 
     try {
-      const response = await fetch('/api/reports/tickets.csv', {
+      const response = await fetch(apiUrl('/api/reports/tickets.csv'), {
         headers: {
           ...getAuthHeader(),
         },
@@ -533,7 +541,7 @@ function ManagerAllTicketsPage({ user }: { user: LoginUser | null }) {
       setIsLoading(true);
 
       try {
-        const response = await fetch('/api/tickets', {
+        const response = await fetch(apiUrl('/api/tickets'), {
           headers: {
             ...getAuthHeader(),
           },
@@ -657,7 +665,7 @@ function ManagerDashboardPage({ user }: { user: LoginUser | null }) {
       setIsLoading(true);
 
       try {
-        const response = await fetch('/api/dashboard/manager', {
+        const response = await fetch(apiUrl('/api/dashboard/manager'), {
           headers: {
             ...getAuthHeader(),
           },
@@ -800,7 +808,7 @@ function AnalystQueuePage({ user }: { user: LoginUser | null }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/tickets', {
+      const response = await fetch(apiUrl('/api/tickets'), {
         headers: {
           ...getAuthHeader(),
         },
@@ -829,7 +837,7 @@ function AnalystQueuePage({ user }: { user: LoginUser | null }) {
     setClaimingTicketId(ticket.id);
 
     try {
-      const response = await fetch(`/api/tickets/${ticket.id}/claim`, {
+      const response = await fetch(apiUrl(`/api/tickets/${ticket.id}/claim`), {
         method: 'PATCH',
         headers: {
           ...getAuthHeader(),
@@ -1046,17 +1054,17 @@ function TicketDetailPage({ user }: { user: LoginUser | null }) {
 
     try {
       const [ticketResponse, commentsResponse, auditEventsResponse] = await Promise.all([
-        fetch(`/api/tickets/${ticketId}`, {
+        fetch(apiUrl(`/api/tickets/${ticketId}`), {
           headers: {
             ...getAuthHeader(),
           },
         }),
-        fetch(`/api/tickets/${ticketId}/comments`, {
+        fetch(apiUrl(`/api/tickets/${ticketId}/comments`), {
           headers: {
             ...getAuthHeader(),
           },
         }),
-        fetch(`/api/tickets/${ticketId}/audit-events`, {
+        fetch(apiUrl(`/api/tickets/${ticketId}/audit-events`), {
           headers: {
             ...getAuthHeader(),
           },
@@ -1102,7 +1110,7 @@ function TicketDetailPage({ user }: { user: LoginUser | null }) {
     setIsAddingComment(true);
 
     try {
-      const response = await fetch(`/api/tickets/${ticket.id}/comments`, {
+      const response = await fetch(apiUrl(`/api/tickets/${ticket.id}/comments`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1145,7 +1153,7 @@ function TicketDetailPage({ user }: { user: LoginUser | null }) {
     const nextStatus = String(formData.get('status'));
 
     try {
-      const response = await fetch(`/api/tickets/${ticket.id}/status`, {
+      const response = await fetch(apiUrl(`/api/tickets/${ticket.id}/status`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1395,7 +1403,7 @@ function MyTicketsPage({ user }: { user: LoginUser | null }) {
       setIsLoading(true);
 
       try {
-        const response = await fetch('/api/tickets', {
+        const response = await fetch(apiUrl('/api/tickets'), {
           headers: {
             ...getAuthHeader(),
           },
@@ -1544,7 +1552,7 @@ function CreateTicketPage({ user }: { user: LoginUser | null }) {
     setIsSuggesting(true);
 
     try {
-      const response = await fetch('/api/tickets/triage-suggestion', {
+      const response = await fetch(apiUrl('/api/tickets/triage-suggestion'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1589,7 +1597,7 @@ function CreateTicketPage({ user }: { user: LoginUser | null }) {
     const payload = getTicketPayload(form);
 
     try {
-      const response = await fetch('/api/tickets', {
+      const response = await fetch(apiUrl('/api/tickets'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
