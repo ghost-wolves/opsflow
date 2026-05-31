@@ -550,3 +550,55 @@ GitHub Actions runs separate backend and frontend workflows. The backend workflo
 ### Manual Smoke Testing
 
 A final deployed smoke test was performed after production deployment. The deployed Vercel frontend successfully connected to the Render backend and Neon PostgreSQL database. Requester, analyst, and manager demo accounts were each tested successfully, including ticket creation and role-specific page access.
+
+## Final Design Pattern Evidence
+
+OpsFlow applies several practical design patterns and architectural patterns to keep the system maintainable, testable, and organized.
+
+### Layered Architecture
+
+The backend separates responsibilities across controllers, services, repositories, entities, DTOs, and configuration classes.
+
+- Controllers handle HTTP requests and responses.
+- Services contain business rules and workflow logic.
+- Repositories isolate database access.
+- DTOs shape API request and response payloads.
+- Configuration classes isolate security, CORS, and runtime behavior.
+
+This keeps API handling, business logic, and persistence concerns separate.
+
+### Repository Pattern
+
+Spring Data JPA repositories are used to abstract database access for users, tickets, comments, and audit events. Business services depend on repository interfaces instead of writing SQL directly throughout the codebase.
+
+This improves testability and keeps persistence details out of workflow logic.
+
+### Service Layer Pattern
+
+Business operations are implemented in focused service classes. Examples include ticket creation, assignment, status transitions, SLA calculation, SLA risk calculation, audit event creation, dashboard summaries, CSV export, and triage suggestions.
+
+This keeps controllers thin and makes business rules easier to test independently.
+
+### Strategy-Like Rule Services
+
+Priority calculation, SLA calculation, SLA risk calculation, and triage suggestion logic are isolated into dedicated rule services. Each service encapsulates a specific decision model.
+
+This makes the rule logic easier to change without rewriting controller or persistence code.
+
+### DTO Pattern
+
+Request and response objects are used to define stable API contracts. The backend does not expose raw persistence entities directly as the API design surface.
+
+This helps separate internal database models from frontend-facing JSON contracts.
+
+### Audit Trail Pattern
+
+Ticket actions create audit events that preserve a chronological record of important workflow activity. This supports traceability for ticket creation, assignment, status changes, and comment-related activity.
+
+### Role-Based Access Control
+
+Spring Security enforces role-based access for requester, analyst, and manager workflows. This prevents users from accessing actions outside their responsibility area.
+
+### Configuration by Environment
+
+The application uses environment variables for production settings such as database credentials, CORS origins, and frontend API URL configuration. This keeps secrets out of source control and allows local and production environments to use the same codebase with different runtime settings.
