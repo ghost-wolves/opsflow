@@ -228,7 +228,7 @@ function App() {
           path="/assigned"
           element={
             <ProtectedRoute user={user}>
-              <PlaceholderPage title="Assigned Tickets" />
+              <AssignedTicketsPage user={user} />
             </ProtectedRoute>
           }
         />
@@ -937,6 +937,100 @@ function AnalystQueuePage({ user }: { user: LoginUser | null }) {
     </main>
   );
 }
+
+
+function AssignedTicketsPage({ user }: { user: LoginUser | null }) {
+  const [tickets, setTickets] = useState<TicketResponse[]>([]);
+  const [error, setError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  async function loadTickets() {
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(apiUrl('/api/tickets'), {
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to load assigned tickets.');
+      }
+
+      const data = (await response.json()) as TicketResponse[];
+      setTickets(data);
+    } catch {
+      setError('Unable to load assigned tickets.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  if (!hasRole(user, 'ANALYST')) {
+    return (
+      <main className="centered-page">
+        <section className="hero-card">
+          <h1>Access Denied</h1>
+          <p>Only analysts can view assigned tickets.</p>
+        </section>
+      </main>
+    );
+  }
+
+  const assignedTickets = tickets.filter(
+    (ticket) => ticket.assignedToEmail === user?.email,
+  );
+
+  const activeAssignedTickets = assignedTickets.filter(
+    (ticket) => !isTicketClosedOrResolved(ticket),
+  );
+
+  const completedAssignedTickets = assignedTickets.filter(isTicketClosedOrResolved);
+
+  return (
+    <main className="page-container">
+      <section className="content-card">
+        <div className="page-title-row">
+          <div>
+            <h1>Assigned Tickets</h1>
+            <p>Review tickets currently assigned to your analyst account.</p>
+          </div>
+
+          <Link className="primary-link" to="/queue">
+            Back to Queue
+          </Link>
+        </div>
+
+        {isLoading ? <p>Loading assigned tickets...</p> : null}
+
+        {error ? <p className="error-message">{error}</p> : null}
+
+        {!isLoading && !error ? (
+          <div className="queue-layout">
+            <QueueSection
+              title="Active Assigned Tickets"
+              description="Assigned tickets that are still open or in progress."
+              tickets={activeAssignedTickets}
+            />
+
+            <QueueSection
+              title="Completed Assigned Tickets"
+              description="Assigned tickets that have been resolved or closed."
+              tickets={completedAssignedTickets}
+            />
+          </div>
+        ) : null}
+      </section>
+    </main>
+  );
+}
+
 
 function QueueSection({
   title,
@@ -1752,15 +1846,5 @@ function CreateTicketPage({ user }: { user: LoginUser | null }) {
 
 
 
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <main className="centered-page">
-      <section className="hero-card">
-        <h1>{title}</h1>
-        <p>This page will be implemented in a later step.</p>
-      </section>
-    </main>
-  );
-}
 
 export default App;
