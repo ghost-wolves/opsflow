@@ -602,3 +602,59 @@ Spring Security enforces role-based access for requester, analyst, and manager w
 ### Configuration by Environment
 
 The application uses environment variables for production settings such as database credentials, CORS origins, and frontend API URL configuration. This keeps secrets out of source control and allows local and production environments to use the same codebase with different runtime settings.
+
+## Final Security Notes
+
+OpsFlow includes role-based security appropriate for a demonstration system, while also documenting the changes that would be needed before real production use.
+
+### Authentication
+
+The application uses Spring Security with HTTP Basic authentication for demo accounts. Three demo roles are available:
+
+- Requester
+- Analyst
+- Manager
+
+These accounts are intended for demonstration and testing only.
+
+### Authorization
+
+Role-based access control protects workflow-specific functionality:
+
+- Requesters can create and view requester-facing tickets.
+- Analysts can access analyst workflow features such as queues, claiming, status updates, and comments.
+- Managers can access manager dashboards, reporting, and all-ticket views.
+
+Backend authorization is enforced by Spring Security so protected actions are not controlled only by frontend navigation.
+
+### CORS
+
+Production CORS is restricted through the `APP_CORS_ALLOWED_ORIGINS` environment variable. The deployed Vercel frontend URL is explicitly allowed to communicate with the Render backend.
+
+### Secret Management
+
+Production database credentials are provided through deployment environment variables. Secrets are not intended to be committed to source control.
+
+### Demo Credential Limitation
+
+The current demo accounts use simple shared credentials to make evaluation and walkthroughs easy. Before real-world use, this should be replaced with:
+
+- Hashed passwords only
+- User-specific passwords
+- Password reset support
+- Session or token-based authentication
+- Stronger account lifecycle controls
+
+### Production Hardening Recommendations
+
+Before adapting OpsFlow for real organizational use, recommended improvements include:
+
+- Replace demo authentication with OAuth2, OIDC, SSO, or JWT-based authentication.
+- Store all passwords with a strong adaptive hash such as BCrypt or Argon2.
+- Rotate any credentials used during deployment setup.
+- Add rate limiting for authentication endpoints.
+- Add structured audit logging for security-sensitive events.
+- Add input sanitization and stricter validation for user-entered text.
+- Add centralized error handling that avoids exposing internal details.
+- Add HTTPS-only enforcement at the deployment layer.
+- Add monitoring and alerting for failed login attempts and suspicious access patterns.
