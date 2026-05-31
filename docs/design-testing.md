@@ -439,3 +439,52 @@ This approach provides a realistic deployment architecture while keeping operati
 - File attachments could be added for ticket evidence and screenshots.
 - More advanced reporting filters could be added for date ranges, analysts, priorities, and SLA outcomes.
 - The UI could be expanded with richer visual charts and saved manager report views.
+
+## Final Architecture
+
+OpsFlow is deployed as a three-tier full-stack web application.
+
+The frontend is a React and TypeScript single-page application deployed on Vercel. It communicates with the backend through a configurable API base URL set by the `VITE_API_BASE_URL` environment variable. This allows the same frontend codebase to run locally against `localhost` or in production against the deployed backend.
+
+The backend is a Java 21 Spring Boot API deployed on Render. It exposes REST endpoints for authentication, ticket management, assignment workflow, comments, audit events, SLA tracking, manager dashboards, and CSV reporting. The backend runs with the `prod` Spring profile in production and binds to Render's assigned port through `server.port=${PORT:8080}`.
+
+The database is PostgreSQL hosted on Neon. Schema versioning is handled with Flyway migrations. The production backend uses environment variables for database URL, username, and password so credentials are not committed to the repository.
+
+### Production Components
+
+- Frontend: Vercel-hosted React application
+- Backend: Render-hosted Spring Boot API
+- Database: Neon PostgreSQL
+- Schema management: Flyway
+- CI: GitHub Actions
+- Local database: Docker Compose PostgreSQL
+
+### Runtime Request Flow
+
+1. A user opens the deployed Vercel frontend.
+2. The frontend sends API requests to the Render backend.
+3. The backend authenticates the request and applies role-based authorization.
+4. Business services process ticket, SLA, workflow, comment, audit, dashboard, or reporting actions.
+5. Spring Data JPA persists and retrieves data from Neon PostgreSQL.
+6. The backend returns JSON responses to the frontend.
+
+### Security Architecture
+
+OpsFlow uses Spring Security for authentication and authorization. Demo accounts are provided for requester, analyst, and manager roles. Role-based access rules protect manager-only endpoints, requester ticket creation, analyst workflow actions, and authenticated ticket data.
+
+CORS is restricted through the `APP_CORS_ALLOWED_ORIGINS` environment variable in production. The deployed frontend origin is explicitly allowed so browser requests from Vercel can communicate with the Render API.
+
+### Data Architecture
+
+PostgreSQL stores application users, tickets, ticket comments, audit events, and related workflow data. Flyway migrations define and evolve the schema. The backend uses Spring Data JPA repositories to isolate persistence access from business logic.
+
+### Deployment Architecture
+
+The production deployment separates responsibilities across managed services:
+
+- Vercel serves the static frontend.
+- Render runs the containerized Spring Boot backend.
+- Neon hosts the managed PostgreSQL database.
+- GitHub stores source code and runs automated CI workflows.
+
+This deployment keeps the system simple to operate while still demonstrating a realistic cloud-hosted full-stack architecture.
