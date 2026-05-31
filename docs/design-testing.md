@@ -430,10 +430,12 @@ For the project demonstration, the recommended approach is:
 
 This approach provides a realistic deployment architecture while keeping operational complexity and cost low.
 
-## 9. Known Limitations
+## 9. Known Limitations & Future Improvements
 
-To be expanded during final project polish.
-
-## 10. Future Improvements
-
-To be expanded during final project polish.
+- Demo authentication is intentionally simple and designed for project demonstration.
+- Passwords should be migrated to fully hashed credentials before real-world use.
+- The rule-based triage engine could be expanded with machine learning or AI-assisted classification.
+- Notification support could be added for SLA warnings, assignment changes, and requester updates.
+- File attachments could be added for ticket evidence and screenshots.
+- More advanced reporting filters could be added for date ranges, analysts, priorities, and SLA outcomes.
+- The UI could be expanded with richer visual charts and saved manager report views.
