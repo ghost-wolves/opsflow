@@ -488,3 +488,65 @@ The production deployment separates responsibilities across managed services:
 - GitHub stores source code and runs automated CI workflows.
 
 This deployment keeps the system simple to operate while still demonstrating a realistic cloud-hosted full-stack architecture.
+
+## Final Test Inventory
+
+OpsFlow includes automated testing across backend services, backend API integration flows, frontend page behavior, and end-to-end browser workflows.
+
+### Backend Unit Tests
+
+Backend unit tests validate isolated business logic, including:
+
+- Priority calculation from impact and urgency
+- SLA due-date calculation
+- SLA risk calculation
+- SLA breach updater behavior
+- Ticket number generation
+- Ticket status transition rules
+- Ticket assignment behavior
+- Ticket response mapping
+- Ticket audit service behavior
+- Manager dashboard summary calculations
+- CSV export generation
+- Triage suggestion rules
+- Request validation behavior
+
+### Backend Integration Tests
+
+Backend integration tests validate API behavior through Spring Boot and MockMvc, including:
+
+- Ticket creation API behavior
+- Role-based API access
+- Manager-only authorization checks
+- Ticket assignment workflows
+- Ticket claiming workflows
+- Ticket status update workflows
+- Comment creation and visibility rules
+- Audit event creation and retrieval
+- Authenticated versus unauthenticated access behavior
+
+### Frontend Tests
+
+Frontend tests validate core React application behavior, including:
+
+- Login page behavior
+- Ticket creation page behavior
+- Ticket list page behavior
+- Manager dashboard page behavior
+- Role-aware navigation and page rendering
+
+### End-to-End Tests
+
+Playwright end-to-end tests validate deployed-style user workflows in the browser, including:
+
+- Requester workflow: login, create ticket, view ticket
+- Analyst workflow: login, view queue, claim/work ticket
+- Manager workflow: login, view dashboard, review tickets, use reporting flow
+
+### CI Coverage
+
+GitHub Actions runs separate backend and frontend workflows. The backend workflow runs Maven tests. The frontend workflow runs frontend validation and test commands. These checks help ensure changes do not break core application behavior before merge or deployment.
+
+### Manual Smoke Testing
+
+A final deployed smoke test was performed after production deployment. The deployed Vercel frontend successfully connected to the Render backend and Neon PostgreSQL database. Requester, analyst, and manager demo accounts were each tested successfully, including ticket creation and role-specific page access.
