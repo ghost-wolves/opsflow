@@ -1,5 +1,9 @@
 # OpsFlow
 
+[![Backend CI](https://github.com/ghost-wolves/opsflow/actions/workflows/backend.yml/badge.svg)](https://github.com/ghost-wolves/opsflow/actions/workflows/backend.yml)
+[![Frontend CI](https://github.com/ghost-wolves/opsflow/actions/workflows/frontend.yml/badge.svg)](https://github.com/ghost-wolves/opsflow/actions/workflows/frontend.yml)
+
+
 OpsFlow is a full-stack incident ticket triage and SLA management system.
 
 ## Overview
